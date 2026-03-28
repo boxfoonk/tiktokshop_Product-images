@@ -76,6 +76,8 @@ export default function App() {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [customApiKey, setCustomApiKey] = useState<string>('');
+  const [showSettings, setShowSettings] = useState(false);
 
   const modelInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -118,7 +120,17 @@ export default function App() {
       return;
     }
 
-    if (!hasKey) {
+    // Determine which API key and model to use
+    const effectiveApiKey = customApiKey || process.env.GEMINI_API_KEY;
+    const isHighQuality = !!customApiKey || (hasKey === true && !!window.aistudio);
+
+    if (!effectiveApiKey && !window.aistudio) {
+      setError('未检测到 API Key。请在设置中填入您的 Gemini API Key。');
+      setShowSettings(true);
+      return;
+    }
+
+    if (!hasKey && !customApiKey && window.aistudio) {
       setError('请先选择 API Key 以使用高质量生成模型。');
       await handleSelectKey();
       return;
@@ -129,7 +141,7 @@ export default function App() {
 
     try {
       // Re-initialize GoogleGenAI right before call to use the latest key
-      const currentAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const currentAi = new GoogleGenAI({ apiKey: effectiveApiKey });
       
       const finalPrompt = scenePrompt || COUNTRY_CONFIG[country].defaultPrompt;
       
@@ -151,8 +163,13 @@ export default function App() {
         Output only the final composite image.
       `;
 
+      const modelToUse = isHighQuality ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
+      const imageConfig = isHighQuality 
+        ? { aspectRatio: "9:16", imageSize: "2K" as const } 
+        : { aspectRatio: "9:16" as const };
+
       const response = await currentAi.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
+        model: modelToUse,
         contents: {
           parts: [
             { inlineData: { data: modelImage.split(',')[1], mimeType: 'image/png' } },
@@ -161,10 +178,7 @@ export default function App() {
           ]
         },
         config: {
-          imageConfig: {
-            aspectRatio: "9:16",
-            imageSize: "2K"
-          }
+          imageConfig
         }
       });
 
@@ -215,12 +229,62 @@ export default function App() {
             <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">电商场景合成专家</p>
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-6 text-[11px] uppercase tracking-widest text-white/60">
-          <span>全球市场</span>
-          <span>AI 合成</span>
-          <span>转化率优化</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6 text-[11px] uppercase tracking-widest text-white/60 mr-4">
+            <span>全球市场</span>
+            <span>AI 合成</span>
+            <span>转化率优化</span>
+          </div>
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2 rounded-lg border transition-all ${
+              showSettings ? 'bg-orange-500 border-orange-500 text-black' : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
+            }`}
+            title="设置 API Key"
+          >
+            <Globe className="w-5 h-5" />
+          </button>
         </div>
       </header>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-white/5 border-b border-white/10 overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-orange-500">本地运行设置</h3>
+                <button onClick={() => setShowSettings(false)} className="text-[10px] uppercase text-white/40 hover:text-white">关闭</button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Gemini API Key (填入后开启 2K 高画质)</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="password"
+                    value={customApiKey}
+                    onChange={(e) => setCustomApiKey(e.target.value)}
+                    placeholder="在此输入您的 API Key..."
+                    className="flex-1 bg-black/40 border border-white/10 rounded-lg py-3 px-4 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  />
+                  <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${customApiKey ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-white/60">
+                      {customApiKey ? '高画质模式' : '默认画质'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-white/30">
+                  提示：如果您在 AI Studio 预览中运行，可以直接使用平台提供的 Key。本地运行时，填入 Key 可解锁 2K 分辨率。
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Inputs */}
