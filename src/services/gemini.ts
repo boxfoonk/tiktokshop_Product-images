@@ -8,7 +8,7 @@ import { GenerationParams } from "../types";
 import { COUNTRY_CONFIG } from "../constants";
 
 export async function generateTikTokVisual(params: GenerationParams) {
-  const { modelImage, productImage, productName, scenePrompt, country, apiKey } = params;
+  const { modelImage, productImage, productName, scenePrompt, country, apiKey, isHighQuality } = params;
   
   const ai = new GoogleGenAI({ apiKey });
   const finalPrompt = scenePrompt || COUNTRY_CONFIG[country].defaultPrompt;
@@ -31,9 +31,10 @@ export async function generateTikTokVisual(params: GenerationParams) {
     Output only the final composite image.
   `;
 
-  // Determine model based on quality (if key is provided, assume high quality)
-  // In a real Cloudflare Worker, we could check environment variables.
-  const modelToUse = 'gemini-3.1-flash-image-preview';
+  const modelToUse = isHighQuality ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
+  const imageConfig = isHighQuality 
+    ? { aspectRatio: "9:16", imageSize: "2K" as const } 
+    : { aspectRatio: "9:16" as const };
   
   const response = await ai.models.generateContent({
     model: modelToUse,
@@ -45,10 +46,7 @@ export async function generateTikTokVisual(params: GenerationParams) {
       ]
     },
     config: {
-      imageConfig: {
-        aspectRatio: "9:16",
-        imageSize: "2K"
-      }
+      imageConfig
     }
   });
 

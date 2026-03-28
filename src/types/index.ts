@@ -19,4 +19,5 @@ export interface GenerationParams {
   scenePrompt: string;
   country: Country;
   apiKey: string;
+  isHighQuality: boolean;
 }

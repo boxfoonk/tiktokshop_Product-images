@@ -11,14 +11,18 @@ interface SettingsPanelProps {
   setShowSettings: (show: boolean) => void;
   customApiKey: string;
   setCustomApiKey: (key: string) => void;
+  hasKey: boolean | null;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ 
   showSettings, 
   setShowSettings, 
   customApiKey, 
-  setCustomApiKey 
+  setCustomApiKey,
+  hasKey
 }) => {
+  const isHighQuality = !!customApiKey || hasKey === true;
+
   return (
     <AnimatePresence>
       {showSettings && (
@@ -30,7 +34,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         >
           <div className="max-w-7xl mx-auto p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-orange-500">本地运行设置</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-orange-500">运行设置</h3>
               <button onClick={() => setShowSettings(false)} className="text-[10px] uppercase text-white/40 hover:text-white">关闭</button>
             </div>
             <div className="space-y-2">
@@ -44,14 +48,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   className="flex-1 bg-black/40 border border-white/10 rounded-lg py-3 px-4 text-sm focus:outline-none focus:border-orange-500 transition-colors"
                 />
                 <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${customApiKey ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
+                  <div className={`w-2 h-2 rounded-full ${isHighQuality ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
                   <span className="text-[10px] uppercase tracking-widest font-bold text-white/60">
-                    {customApiKey ? '高画质模式' : '默认画质'}
+                    {isHighQuality ? '高画质模式' : '默认画质 (无需 Key)'}
                   </span>
                 </div>
               </div>
               <p className="text-[9px] text-white/30">
-                提示：如果您在 AI Studio 预览中运行，可以直接使用平台提供的 Key。本地运行时，填入 Key 可解锁 2K 分辨率。
+                提示：如果您在 AI Studio 预览中运行，可以直接使用平台提供的 Key。本地运行时，填入 Key 可解锁 2K 分辨率。如果未填入 Key，将使用默认画质模式。
               </p>
             </div>
           </div>

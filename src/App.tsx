@@ -87,16 +87,10 @@ export default function App() {
     }
 
     const effectiveApiKey = customApiKey || process.env.GEMINI_API_KEY;
-
-    if (!effectiveApiKey && !window.aistudio) {
-      setError('未检测到 API Key。请在设置中填入您的 Gemini API Key。');
+    
+    if (!effectiveApiKey) {
+      setError('未检测到 API Key。请在设置中填入您的 Gemini API Key 以继续。');
       setShowSettings(true);
-      return;
-    }
-
-    if (!hasKey && !customApiKey && window.aistudio) {
-      setError('请先选择 API Key 以使用高质量生成模型。');
-      await handleSelectKey();
       return;
     }
 
@@ -110,14 +104,21 @@ export default function App() {
         productName,
         scenePrompt,
         country,
-        apiKey: effectiveApiKey || ''
+        apiKey: effectiveApiKey,
+        isHighQuality
       });
       setResultImage(result);
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes('Requested entity was not found')) {
-        setHasKey(false);
-        setError('API Key 无效或已过期，请重新选择。');
+      // If high quality failed with a key error, we could potentially fallback to standard quality
+      // but it's better to inform the user about the key issue.
+      if (err.message?.includes('Requested entity was not found') || err.message?.includes('API_KEY_INVALID')) {
+        if (customApiKey) {
+          setError('您填入的 API Key 无效或不支持该模型。请检查后重试。');
+        } else {
+          setHasKey(false);
+          setError('API Key 无效或已过期，请重新选择或填入 Key。');
+        }
       } else {
         setError(err.message || '生成过程中发生错误。');
       }
@@ -135,15 +136,18 @@ export default function App() {
     }
   };
 
+  const isHighQuality = !!customApiKey || (hasKey === true && !!window.aistudio);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-orange-500 selection:text-black">
-      <Header showSettings={showSettings} setShowSettings={setShowSettings} />
+      <Header showSettings={showSettings} setShowSettings={setShowSettings} isHighQuality={isHighQuality} />
       
       <SettingsPanel 
         showSettings={showSettings} 
         setShowSettings={setShowSettings} 
         customApiKey={customApiKey} 
         setCustomApiKey={setCustomApiKey} 
+        hasKey={hasKey}
       />
 
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
