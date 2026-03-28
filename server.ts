@@ -12,6 +12,10 @@ import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
+// 混淆后的 SiliconFlow Key (Base64 + 反转)
+const _D_K = "eG9sbHNobWJ1Y2xsc2licWd6eWd5Y3l5d2ZndHdpeGJjbHlpdmhzbHZubnBweXpxbmlha3M=";
+const getFallbackKey = () => Buffer.from(_D_K, 'base64').toString().split('').reverse().join('');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,27 +25,55 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // API Route: Proxy Gemini Generation
+  // API Route: Proxy Generation
   app.post("/api/generate", async (req, res) => {
     try {
       const { modelImage, productImage, productName, scenePrompt, country, isHighQuality } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
+      
+      // 优先级：环境变量 > 混淆的默认 Key
+      const apiKey = process.env.GEMINI_API_KEY || getFallbackKey();
 
       if (!apiKey) {
-        return res.status(400).json({ error: "服务器未配置 GEMINI_API_KEY。请在本地 .env 文件中设置。" });
+        return res.status(400).json({ error: "未检测到有效的 API Key。" });
       }
 
+      // 如果是 SiliconFlow 的 Key (sk- 开头)
+      if (apiKey.startsWith('sk-')) {
+        console.log("检测到 SiliconFlow Key，正在调用 SiliconFlow (FLUX) 接口...");
+        
+        const sfResponse = await fetch("https://api.siliconflow.cn/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "black-forest-labs/FLUX.1-schnell",
+            prompt: `Professional TikTok E-commerce visual for ${productName}. Scene: ${scenePrompt}. Style: High-end commercial photography, vibrant colors, ${country} aesthetic. High resolution, 4k, sharp focus.`,
+            image_size: "720x1280",
+            batch_size: 1
+          })
+        });
+
+        const sfData: any = await sfResponse.json();
+        if (sfData.images && sfData.images[0]?.url) {
+          return res.json({ imageUrl: sfData.images[0].url });
+        } else {
+          throw new Error(sfData.message || "SiliconFlow 生成失败");
+        }
+      }
+
+      // 否则使用 Gemini 逻辑
       const ai = new GoogleGenAI({ apiKey });
       const modelToUse = isHighQuality ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
       
-      // Use the same logic as the frontend service
       const response = await ai.models.generateContent({
         model: modelToUse,
         contents: {
           parts: [
             { inlineData: { data: modelImage.split(',')[1], mimeType: 'image/png' } },
             { inlineData: { data: productImage.split(',')[1], mimeType: 'image/png' } },
-            { text: scenePrompt } // Simplified for proxy
+            { text: scenePrompt }
           ]
         },
         config: {
@@ -56,7 +88,7 @@ async function startServer() {
 
       res.status(500).json({ error: "生成失败，未找到图像数据。" });
     } catch (error: any) {
-      console.error("Proxy Error:", error);
+      console.error("Generation Error:", error);
       res.status(500).json({ error: error.message || "服务器内部错误" });
     }
   });
