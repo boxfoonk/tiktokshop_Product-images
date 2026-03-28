@@ -129,7 +129,8 @@ export default function App() {
           data = JSON.parse(responseText);
         } catch (e) {
           console.error("JSON Parse Error. Raw response:", responseText);
-          throw new Error(`服务器响应格式错误 (非 JSON)。请检查后端控制台日志。`);
+          const snippet = responseText.substring(0, 100).replace(/<[^>]*>?/gm, '');
+          throw new Error(`服务器响应格式错误: ${snippet}... (可能是图片过大或后端崩溃)`);
         }
 
         if (!response.ok) throw new Error(data.error || '后端生成失败');
