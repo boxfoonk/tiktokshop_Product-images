@@ -23,13 +23,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  // 增加限制以处理大型 Base64 图片
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
   // API Route: Proxy Generation
   app.post("/api/generate", async (req, res) => {
+    console.log(`[${new Date().toISOString()}] 收到生成请求: ${req.body.productName || '未命名'}`);
+    
     try {
       const { modelImage, productImage, productName, scenePrompt, country, isHighQuality } = req.body;
       
+      if (!modelImage || !productImage) {
+        return res.status(400).json({ error: "缺少图片素材。" });
+      }
+
       // 优先级：环境变量 > 混淆的默认 Key
       const apiKey = process.env.GEMINI_API_KEY || getFallbackKey();
 

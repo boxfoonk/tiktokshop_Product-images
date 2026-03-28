@@ -123,7 +123,15 @@ export default function App() {
           })
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("JSON Parse Error. Raw response:", responseText);
+          throw new Error(`服务器响应格式错误 (非 JSON)。请检查后端控制台日志。`);
+        }
+
         if (!response.ok) throw new Error(data.error || '后端生成失败');
         result = data.imageUrl;
       }
