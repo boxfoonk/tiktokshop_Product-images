@@ -88,30 +88,49 @@ export default function App() {
 
     const effectiveApiKey = customApiKey || process.env.GEMINI_API_KEY;
     
-    if (!effectiveApiKey) {
-      setError('未检测到 API Key。请在设置中填入您的 Gemini API Key 以继续。');
-      setShowSettings(true);
-      return;
-    }
+    // Determine quality based on whether a key was explicitly provided or selected in AI Studio
+    const isHighQuality = !!customApiKey || (hasKey === true && !!window.aistudio);
 
     setIsGenerating(true);
     setError(null);
 
     try {
-      const result = await generateTikTokVisual({
-        modelImage,
-        productImage,
-        productName,
-        scenePrompt,
-        country,
-        apiKey: effectiveApiKey,
-        isHighQuality
-      });
+      let result: string;
+      
+      if (effectiveApiKey) {
+        // Option A: Client-side generation (if key is available)
+        result = await generateTikTokVisual({
+          modelImage,
+          productImage,
+          productName,
+          scenePrompt: scenePrompt || COUNTRY_CONFIG[country].defaultPrompt,
+          country,
+          apiKey: effectiveApiKey,
+          isHighQuality
+        });
+      } else {
+        // Option B: Server-side generation (Proxy mode)
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modelImage,
+            productImage,
+            productName,
+            scenePrompt: scenePrompt || COUNTRY_CONFIG[country].defaultPrompt,
+            country,
+            isHighQuality
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || '后端生成失败');
+        result = data.imageUrl;
+      }
+      
       setResultImage(result);
     } catch (err: any) {
       console.error(err);
-      // If high quality failed with a key error, we could potentially fallback to standard quality
-      // but it's better to inform the user about the key issue.
       if (err.message?.includes('Requested entity was not found') || err.message?.includes('API_KEY_INVALID')) {
         if (customApiKey) {
           setError('您填入的 API Key 无效或不支持该模型。请检查后重试。');
