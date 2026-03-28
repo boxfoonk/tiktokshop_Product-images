@@ -3,25 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import React, { useState, useEffect } from 'react';
 import { 
-  Upload, 
-  Globe, 
-  ShoppingBag, 
-  Sparkles, 
-  Image as ImageIcon, 
+  ImageIcon, 
   Loader2, 
+  Sparkles, 
+  AlertCircle,
   Download,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Initialize Gemini API (Initial instance for general use, will be recreated for generation)
-let ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-type Country = 'Brazil' | 'Germany' | 'France' | 'UK' | 'Japan';
 
 // Extend Window interface for AI Studio APIs
 declare global {
@@ -33,38 +24,16 @@ declare global {
   }
 }
 
-const COUNTRY_CONFIG: Record<Country, { label: string; flag: string; style: string; defaultPrompt: string }> = {
-  Brazil: {
-    label: '巴西',
-    flag: '🇧🇷',
-    style: '热情、明亮、温暖的自然光、充满活力。',
-    defaultPrompt: 'A high-energy TikTok POV scene in a Rio de Janeiro beach background or a lush tropical courtyard. Bright natural sunlight, vibrant colors, model naturally showcasing the product to the camera.'
-  },
-  Germany: {
-    label: '德国',
-    flag: '🇩🇪',
-    style: '现代、极简、注重质感、理性、结构感强。',
-    defaultPrompt: 'A clean, modern TikTok unboxing or review scene in a Berlin industrial-style loft. Neutral tones, sharp focus, professional minimalist aesthetic, model demonstrating product utility.'
-  },
-  France: {
-    label: '法国',
-    flag: '🇫🇷',
-    style: '优雅、艺术感、柔和、法式浪漫、历史感。',
-    defaultPrompt: 'An elegant TikTok lifestyle scene at a chic Parisian street cafe or a Haussmann-style apartment. Soft romantic lighting, artistic composition, model naturally using the product in a stylish setting.'
-  },
-  UK: {
-    label: '英国',
-    flag: '🇬🇧',
-    style: '经典、街头文化、复古与现代融合、冷调。',
-    defaultPrompt: 'A dynamic TikTok street-style scene in a London red-brick neighborhood or Notting Hill. Slightly cool tones, eclectic urban vibe, model naturally interacting with the product in a busy city setting.'
-  },
-  Japan: {
-    label: '日本',
-    flag: '🇯🇵',
-    style: '干净、极简、小清新、禅意、未来感与传统的融合。',
-    defaultPrompt: 'A minimalist TikTok lifestyle scene in a clean Tokyo urban apartment or a neon-lit Shibuya street at night. Zen aesthetics, balanced composition, model showcasing the product with a futuristic yet traditional vibe.'
-  }
-};
+// Components
+import { Header } from './components/Header';
+import { SettingsPanel } from './components/SettingsPanel';
+import { ImageUpload } from './components/ImageUpload';
+import { MarketSettings } from './components/MarketSettings';
+
+// Services & Types
+import { generateTikTokVisual } from './services/gemini';
+import { Country } from './types';
+import { COUNTRY_CONFIG } from './constants';
 
 export default function App() {
   const [modelImage, setModelImage] = useState<string | null>(null);
@@ -79,17 +48,14 @@ export default function App() {
   const [customApiKey, setCustomApiKey] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
 
-  const modelInputRef = useRef<HTMLInputElement>(null);
-  const productInputRef = useRef<HTMLInputElement>(null);
-
-  // Check for API key on mount
-  React.useEffect(() => {
+  // Check for API key on mount (AI Studio specific)
+  useEffect(() => {
     const checkKey = async () => {
       if (window.aistudio) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
       } else {
-        setHasKey(true); // Fallback for local dev if needed
+        setHasKey(true); // Fallback for local dev
       }
     };
     checkKey();
@@ -98,7 +64,7 @@ export default function App() {
   const handleSelectKey = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
-      setHasKey(true); // Assume success per instructions
+      setHasKey(true);
     }
   };
 
@@ -114,15 +80,13 @@ export default function App() {
     }
   };
 
-  const generateImage = async () => {
+  const handleGenerate = async () => {
     if (!modelImage || !productImage || !productName) {
       setError('请提供模特图片、产品图片和产品名称。');
       return;
     }
 
-    // Determine which API key and model to use
     const effectiveApiKey = customApiKey || process.env.GEMINI_API_KEY;
-    const isHighQuality = !!customApiKey || (hasKey === true && !!window.aistudio);
 
     if (!effectiveApiKey && !window.aistudio) {
       setError('未检测到 API Key。请在设置中填入您的 Gemini API Key。');
@@ -140,60 +104,15 @@ export default function App() {
     setError(null);
 
     try {
-      // Re-initialize GoogleGenAI right before call to use the latest key
-      const currentAi = new GoogleGenAI({ apiKey: effectiveApiKey });
-      
-      const finalPrompt = scenePrompt || COUNTRY_CONFIG[country].defaultPrompt;
-      
-      const systemInstruction = `
-        You are a world-class E-commerce Visual Designer and Scene Integration Specialist for TikTok.
-        Your task is to seamlessly blend the provided model image and product image into a high-quality, high-conversion TikTok marketing visual.
-        
-        STRICT CONSTRAINTS:
-        1. Keep the model's facial features, body type, and original pose natural and recognizable.
-        2. Ensure the product (${productName}) is clearly visible, accurately shaped, and naturally integrated (e.g., held by the model, worn, or placed nearby).
-        3. The scene must strictly follow the aesthetic of ${country}: ${COUNTRY_CONFIG[country].style}
-        4. Scene Context: ${finalPrompt}
-        5. TikTok Optimization: Center the key elements (model and product) to avoid being blocked by TikTok UI elements (bottom text, right-side buttons).
-        6. Visual Style: High saturation, impactful lighting, professional commercial photography.
-        7. NO WATERMARKS: Do not include any watermarks, logos (other than the product's own brand), or text overlays.
-        8. NO STICKERS/EFFECTS: Do not add any artificial stickers, emojis, or digital special effects. The image should look like a real, high-end professional photograph.
-        9. CLARITY: Generate a crystal clear, high-resolution image with sharp details on both the model and the product.
-        
-        Output only the final composite image.
-      `;
-
-      const modelToUse = isHighQuality ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
-      const imageConfig = isHighQuality 
-        ? { aspectRatio: "9:16", imageSize: "2K" as const } 
-        : { aspectRatio: "9:16" as const };
-
-      const response = await currentAi.models.generateContent({
-        model: modelToUse,
-        contents: {
-          parts: [
-            { inlineData: { data: modelImage.split(',')[1], mimeType: 'image/png' } },
-            { inlineData: { data: productImage.split(',')[1], mimeType: 'image/png' } },
-            { text: systemInstruction }
-          ]
-        },
-        config: {
-          imageConfig
-        }
+      const result = await generateTikTokVisual({
+        modelImage,
+        productImage,
+        productName,
+        scenePrompt,
+        country,
+        apiKey: effectiveApiKey || ''
       });
-
-      let foundImage = false;
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          setResultImage(`data:image/png;base64,${part.inlineData.data}`);
-          foundImage = true;
-          break;
-        }
-      }
-
-      if (!foundImage) {
-        throw new Error('生成图片失败，请重试。');
-      }
+      setResultImage(result);
     } catch (err: any) {
       console.error(err);
       if (err.message?.includes('Requested entity was not found')) {
@@ -218,73 +137,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-orange-500 selection:text-black">
-      {/* Header */}
-      <header className="border-b border-white/10 p-6 flex justify-between items-center bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-            <Sparkles className="text-black w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight uppercase">TikTok 电商视觉设计师</h1>
-            <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">电商场景合成专家</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-6 text-[11px] uppercase tracking-widest text-white/60 mr-4">
-            <span>全球市场</span>
-            <span>AI 合成</span>
-            <span>转化率优化</span>
-          </div>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg border transition-all ${
-              showSettings ? 'bg-orange-500 border-orange-500 text-black' : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
-            }`}
-            title="设置 API Key"
-          >
-            <Globe className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
-
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-white/5 border-b border-white/10 overflow-hidden"
-          >
-            <div className="max-w-7xl mx-auto p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-orange-500">本地运行设置</h3>
-                <button onClick={() => setShowSettings(false)} className="text-[10px] uppercase text-white/40 hover:text-white">关闭</button>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Gemini API Key (填入后开启 2K 高画质)</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="password"
-                    value={customApiKey}
-                    onChange={(e) => setCustomApiKey(e.target.value)}
-                    placeholder="在此输入您的 API Key..."
-                    className="flex-1 bg-black/40 border border-white/10 rounded-lg py-3 px-4 text-sm focus:outline-none focus:border-orange-500 transition-colors"
-                  />
-                  <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${customApiKey ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
-                    <span className="text-[10px] uppercase tracking-widest font-bold text-white/60">
-                      {customApiKey ? '高画质模式' : '默认画质'}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-[9px] text-white/30">
-                  提示：如果您在 AI Studio 预览中运行，可以直接使用平台提供的 Key。本地运行时，填入 Key 可解锁 2K 分辨率。
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Header showSettings={showSettings} setShowSettings={setShowSettings} />
+      
+      <SettingsPanel 
+        showSettings={showSettings} 
+        setShowSettings={setShowSettings} 
+        customApiKey={customApiKey} 
+        setCustomApiKey={setCustomApiKey} 
+      />
 
       <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Inputs */}
@@ -295,125 +155,34 @@ export default function App() {
             </h2>
             
             <div className="grid grid-cols-2 gap-4">
-              {/* Model Upload */}
-              <div 
-                onClick={() => modelInputRef.current?.click()}
-                className={`relative aspect-[3/4] border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${
-                  modelImage ? 'border-orange-500/50' : 'border-white/10 hover:border-white/30 hover:bg-white/5'
-                }`}
-              >
-                <input 
-                  type="file" 
-                  ref={modelInputRef} 
-                  onChange={(e) => handleImageUpload(e, 'model')} 
-                  className="hidden" 
-                  accept="image/*"
-                />
-                {modelImage ? (
-                  <>
-                    <img src={modelImage} alt="Model" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <p className="text-[10px] uppercase tracking-widest font-bold">更换模特</p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-4">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-white/20" />
-                    <p className="text-[10px] uppercase tracking-widest font-bold">上传模特图</p>
-                    <p className="text-[9px] text-white/40 mt-1">人像/全身照</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Product Upload */}
-              <div 
-                onClick={() => productInputRef.current?.click()}
-                className={`relative aspect-[3/4] border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${
-                  productImage ? 'border-orange-500/50' : 'border-white/10 hover:border-white/30 hover:bg-white/5'
-                }`}
-              >
-                <input 
-                  type="file" 
-                  ref={productInputRef} 
-                  onChange={(e) => handleImageUpload(e, 'product')} 
-                  className="hidden" 
-                  accept="image/*"
-                />
-                {productImage ? (
-                  <>
-                    <img src={productImage} alt="Product" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <p className="text-[10px] uppercase tracking-widest font-bold">更换产品</p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-4">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-white/20" />
-                    <p className="text-[10px] uppercase tracking-widest font-bold">上传产品图</p>
-                    <p className="text-[9px] text-white/40 mt-1">清晰的产品实拍图</p>
-                  </div>
-                )}
-              </div>
+              <ImageUpload 
+                label="模特" 
+                subLabel="人像/全身照" 
+                image={modelImage} 
+                onUpload={(e) => handleImageUpload(e, 'model')} 
+                type="model" 
+              />
+              <ImageUpload 
+                label="产品" 
+                subLabel="清晰的产品实拍图" 
+                image={productImage} 
+                onUpload={(e) => handleImageUpload(e, 'product')} 
+                type="product" 
+              />
             </div>
           </section>
 
-          <section className="space-y-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500 flex items-center gap-2">
-              <Globe className="w-4 h-4" /> 02. 市场背景
-            </h2>
-
-            <div className="space-y-4">
-              {/* Country Selection */}
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">目标国家</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {(Object.keys(COUNTRY_CONFIG) as Country[]).map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setCountry(c)}
-                      className={`py-3 rounded-lg border text-[11px] font-bold transition-all flex flex-col items-center gap-1 ${
-                        country === c 
-                        ? 'bg-orange-500 border-orange-500 text-black' 
-                        : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
-                      }`}
-                    >
-                      <span className="text-lg">{COUNTRY_CONFIG[c].flag}</span>
-                      {COUNTRY_CONFIG[c].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Product Name */}
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">产品名称</label>
-                <div className="relative">
-                  <ShoppingBag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                  <input 
-                    type="text"
-                    value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
-                    placeholder="例如：降噪蓝牙耳机"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-orange-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Scene Prompt */}
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">场景描述（可选）</label>
-                <textarea 
-                  value={scenePrompt}
-                  onChange={(e) => setScenePrompt(e.target.value)}
-                  placeholder="留空则自动匹配 TikTok 热门带货场景..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:border-orange-500 transition-colors h-32 resize-none"
-                />
-              </div>
-            </div>
-          </section>
+          <MarketSettings 
+            country={country}
+            setCountry={setCountry}
+            productName={productName}
+            setProductName={setProductName}
+            scenePrompt={scenePrompt}
+            setScenePrompt={setScenePrompt}
+          />
 
           <button
-            onClick={generateImage}
+            onClick={handleGenerate}
             disabled={isGenerating || !modelImage || !productImage || !productName}
             className={`w-full py-6 rounded-xl font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all ${
               isGenerating || !modelImage || !productImage || !productName
@@ -474,14 +243,12 @@ export default function App() {
                     
                     {/* TikTok UI Overlay Simulation */}
                     <div className="absolute inset-0 pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity">
-                      {/* Right side buttons */}
                       <div className="absolute right-4 bottom-32 flex flex-col gap-6 items-center">
                         <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20" />
                         <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/20" />
                         <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/20" />
                         <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/20" />
                       </div>
-                      {/* Bottom text */}
                       <div className="absolute bottom-10 left-4 right-20 space-y-2">
                         <div className="h-4 w-32 bg-white/20 rounded backdrop-blur-md" />
                         <div className="h-3 w-full bg-white/10 rounded backdrop-blur-md" />
@@ -538,7 +305,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="mt-12 border-t border-white/10 p-8 text-center">
         <p className="text-[10px] text-white/20 uppercase tracking-[0.4em]">
           由 Gemini AI 驱动 &bull; 专为 TikTok 创作者设计

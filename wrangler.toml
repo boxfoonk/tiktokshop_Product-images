@@ -1,0 +1,10 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "tiktok-visual-designer"
+pages_build_output_dir = "dist"
+
+[vars]
+# Add your environment variables here
+# GEMINI_API_KEY = "your-api-key"
+
+[[env.production.vars]]
+# Production environment variables
