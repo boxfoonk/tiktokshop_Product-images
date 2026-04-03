@@ -5,13 +5,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
 // Components
 import { Header } from './components/Header';
 import { SettingsPanel } from './components/SettingsPanel';
+import { CustomizationPanel } from './components/CustomizationPanel';
 import { Navigation } from './components/Navigation';
 import { ImageModule } from './modules/ImageModule';
 import { VideoModule } from './modules/VideoModule';
+import { Country } from './types';
 
 // Extend Window interface for AI Studio APIs
 declare global {
@@ -23,11 +26,13 @@ declare global {
   }
 }
 
-export default function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [customApiKey, setCustomApiKey] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const { t } = useConfig();
 
   // Image Module State
   const [imageState, setImageState] = useState({
@@ -64,8 +69,14 @@ export default function App() {
   const isHighQuality = !!customApiKey || (hasKey === true && !!window.aistudio);
 
   return (
-    <div className="min-h-screen bg-bg-main text-text-main font-sans selection:bg-accent/20 selection:text-accent">
-      <Header showSettings={showSettings} setShowSettings={setShowSettings} isHighQuality={isHighQuality} />
+    <div className="min-h-screen bg-bg-main text-text-main font-sans selection:bg-accent/20 selection:text-accent transition-colors duration-300">
+      <Header 
+        showSettings={showSettings} 
+        setShowSettings={setShowSettings} 
+        showConfig={showConfig}
+        setShowConfig={setShowConfig}
+        isHighQuality={isHighQuality} 
+      />
       
       <SettingsPanel 
         showSettings={showSettings} 
@@ -73,6 +84,11 @@ export default function App() {
         customApiKey={customApiKey} 
         setCustomApiKey={setCustomApiKey} 
         hasKey={hasKey}
+      />
+
+      <CustomizationPanel
+        show={showConfig}
+        setShow={setShowConfig}
       />
 
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -117,9 +133,17 @@ export default function App() {
 
       <footer className="mt-12 border-t border-border p-8 text-center">
         <p className="text-[10px] text-text-muted uppercase tracking-[0.4em]">
-          由 Gemini AI 驱动 &bull; 专为 TikTok 创作者设计
+          {t('app.footer')}
         </p>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ConfigProvider>
+      <AppContent />
+    </ConfigProvider>
   );
 }

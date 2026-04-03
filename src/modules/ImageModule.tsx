@@ -20,6 +20,8 @@ import { generateTikTokVisual } from '../services/gemini';
 import { Country } from '../types';
 import { COUNTRY_CONFIG } from '../constants';
 
+import { useConfig } from '../contexts/ConfigContext';
+
 interface ImageModuleProps {
   isHighQuality: boolean;
   customApiKey: string;
@@ -46,6 +48,7 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
   const { modelImage, productImage, country, productName, scenePrompt, resultImage } = state;
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useConfig();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'model' | 'product') => {
     const file = e.target.files?.[0];
@@ -63,7 +66,7 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
 
   const handleGenerate = async () => {
     if (!modelImage || !productImage || !productName) {
-      setError('请提供模特图片、产品图片和产品名称。');
+      setError(t('module.upload_model') + ', ' + t('module.upload_product') + ' ' + t('module.product_name'));
       return;
     }
 
@@ -130,18 +133,18 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
       <div className="lg:col-span-5 space-y-8">
         <section className="space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-accent flex items-center gap-2">
-            <Monitor className="w-4 h-4" /> 01. 视觉素材
+            <Monitor className="w-4 h-4" /> {t('module.visual_assets')}
           </h2>
           <div className="grid grid-cols-2 gap-4">
             <ImageUpload 
-              label="模特" 
+              label={t('module.upload_model')} 
               subLabel="人像/全身照" 
               image={modelImage} 
               onUpload={(e) => handleImageUpload(e, 'model')} 
               type="model" 
             />
             <ImageUpload 
-              label="产品" 
+              label={t('module.upload_product')} 
               subLabel="产品实拍图" 
               image={productImage} 
               onUpload={(e) => handleImageUpload(e, 'product')} 
@@ -167,19 +170,19 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
           disabled={isGenerating || !modelImage || !productImage || !productName}
           className={`w-full py-6 rounded-xl font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all ${
             isGenerating || !modelImage || !productImage || !productName
-            ? 'bg-white text-text-muted/30 border border-border cursor-not-allowed'
+            ? 'bg-card text-text-muted/30 border border-border cursor-not-allowed'
             : 'bg-accent text-white hover:bg-accent-hover hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-accent/20'
           }`}
         >
           {isGenerating ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              正在合成场景...
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {t('module.generating')}
             </>
           ) : (
             <>
               <Sparkles className="w-5 h-5" />
-              生成 TikTok 带货素材
+              {t('module.generate_image')}
             </>
           )}
         </button>
@@ -199,18 +202,18 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
       <div className="lg:col-span-7">
         <div className="sticky top-40 space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">视觉预览</h2>
+            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">{t('module.preview')}</h2>
             {resultImage && (
               <button 
                 onClick={downloadResult}
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-accent hover:text-accent-hover transition-colors"
               >
-                <Download className="w-4 h-4" /> 下载图片
+                <Download className="w-4 h-4" /> {t('module.download')}
               </button>
             )}
           </div>
 
-          <div className="relative aspect-[9/16] bg-white border border-border rounded-2xl overflow-hidden flex items-center justify-center group shadow-sm">
+          <div className="relative aspect-[9/16] bg-card border border-border rounded-2xl overflow-hidden flex items-center justify-center group shadow-sm">
             <AnimatePresence mode="wait">
               {resultImage ? (
                 <motion.div
@@ -233,9 +236,9 @@ export const ImageModule: React.FC<ImageModuleProps> = ({ isHighQuality, customA
                       <div className="h-3 w-2/3 bg-black/5 rounded backdrop-blur-sm" />
                     </div>
                   </div>
-                  <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                  <div className="absolute top-4 left-4 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
                     <CheckCircle2 className="w-3 h-3 text-accent" />
-                    <span className="text-[9px] uppercase tracking-widest font-bold text-text-main">TikTok 适用</span>
+                    <span className="text-[9px] uppercase tracking-widest font-bold text-text-main">{t('module.tiktok_ready')}</span>
                   </div>
                 </motion.div>
               ) : (

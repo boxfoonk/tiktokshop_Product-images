@@ -20,6 +20,8 @@ import { generateTikTokVideo } from '../services/gemini';
 import { Country } from '../types';
 import { COUNTRY_CONFIG } from '../constants';
 
+import { useConfig } from '../contexts/ConfigContext';
+
 interface VideoModuleProps {
   isHighQuality: boolean;
   customApiKey: string;
@@ -44,6 +46,7 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
   const { modelImage, country, productName, videoScript, resultVideo } = state;
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useConfig();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,7 +61,7 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
 
   const handleGenerate = async () => {
     if (!modelImage || !productName) {
-      setError('请提供参考图片和产品名称。');
+      setError(t('module.upload_ref') + ' ' + t('module.product_name'));
       return;
     }
 
@@ -124,11 +127,11 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
       <div className="lg:col-span-5 space-y-8">
         <section className="space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-accent flex items-center gap-2">
-            <Monitor className="w-4 h-4" /> 01. 视觉素材
+            <Monitor className="w-4 h-4" /> {t('module.visual_assets')}
           </h2>
           <div className="grid grid-cols-1 gap-4">
             <ImageUpload 
-              label="参考图" 
+              label={t('module.upload_ref')} 
               subLabel="模特与产品参考图" 
               image={modelImage} 
               onUpload={handleImageUpload} 
@@ -154,19 +157,19 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
           disabled={isGenerating || !modelImage || !productName}
           className={`w-full py-6 rounded-xl font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all ${
             isGenerating || !modelImage || !productName
-            ? 'bg-white text-text-muted/30 border border-border cursor-not-allowed'
+            ? 'bg-card text-text-muted/30 border border-border cursor-not-allowed'
             : 'bg-accent text-white hover:bg-accent-hover hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-accent/20'
           }`}
         >
           {isGenerating ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              正在生成视频...
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {t('module.generating')}
             </>
           ) : (
             <>
               <Play className="w-5 h-5" />
-              生成 TikTok 营销视频
+              {t('module.generate_video')}
             </>
           )}
         </button>
@@ -186,18 +189,18 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
       <div className="lg:col-span-7">
         <div className="sticky top-40 space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">视觉预览</h2>
+            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">{t('module.preview')}</h2>
             {resultVideo && (
               <button 
                 onClick={downloadResult}
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-accent hover:text-accent-hover transition-colors"
               >
-                <Download className="w-4 h-4" /> 下载视频
+                <Download className="w-4 h-4" /> {t('module.download')}
               </button>
             )}
           </div>
 
-          <div className="relative aspect-[9/16] bg-white border border-border rounded-2xl overflow-hidden flex items-center justify-center group shadow-sm">
+          <div className="relative aspect-[9/16] bg-card border border-border rounded-2xl overflow-hidden flex items-center justify-center group shadow-sm">
             <AnimatePresence mode="wait">
               {resultVideo ? (
                 <motion.div
@@ -220,9 +223,9 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
                       <div className="h-3 w-2/3 bg-black/5 rounded backdrop-blur-sm" />
                     </div>
                   </div>
-                  <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                  <div className="absolute top-4 left-4 bg-card/80 backdrop-blur-md border border-border px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
                     <CheckCircle2 className="w-3 h-3 text-accent" />
-                    <span className="text-[9px] uppercase tracking-widest font-bold text-text-main">TikTok 适用</span>
+                    <span className="text-[9px] uppercase tracking-widest font-bold text-text-main">{t('module.tiktok_ready')}</span>
                   </div>
                 </motion.div>
               ) : (
@@ -236,17 +239,17 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
                     <Video className="w-8 h-8 text-text-muted/20" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-text-muted">等待生成</p>
+                    <p className="text-sm font-medium text-text-muted">{t('module.wait')}</p>
                     <p className="text-[10px] text-text-muted/40 uppercase tracking-widest leading-relaxed max-w-[240px] mx-auto">
-                      上传参考图并描述动作，见证 AI 的魔力。
+                      {t('module.tips')}
                     </p>
                   </div>
                   {isGenerating && (
-                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+                    <div className="absolute inset-0 bg-card/60 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
                       <div className="w-12 h-12 border-4 border-accent/10 border-t-accent rounded-full animate-spin" />
                       <div className="text-center space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-text-main">正在渲染视频</p>
-                        <p className="text-[9px] text-text-muted uppercase tracking-widest">正在应用 {COUNTRY_CONFIG[country].label} 审美风格</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-text-main">{t('module.generating')}</p>
+                        <p className="text-[9px] text-text-muted uppercase tracking-widest">{COUNTRY_CONFIG[country].label}</p>
                       </div>
                     </div>
                   )}
@@ -255,8 +258,8 @@ export const VideoModule: React.FC<VideoModuleProps> = ({ isHighQuality, customA
             </AnimatePresence>
           </div>
 
-          <div className="p-4 rounded-xl bg-white border border-border space-y-2 shadow-sm">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">专业建议</h3>
+          <div className="p-4 rounded-xl bg-card border border-border space-y-2 shadow-sm">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{t('module.tips')}</h3>
             <ul className="text-[10px] text-text-muted space-y-1 list-disc pl-4 leading-relaxed">
               <li>视频生成可能需要 1-2 分钟，请耐心等待。</li>
               <li>脚本描述越具体，视频动作越自然。</li>

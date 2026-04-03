@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { ImageIcon, Video } from 'lucide-react';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface NavigationProps {
   activeTab: 'image' | 'video';
@@ -12,8 +13,10 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
+  const { t } = useConfig();
+
   return (
-    <nav className="border-b border-border bg-white sticky top-[89px] z-40 shadow-sm">
+    <nav className="border-b border-border bg-card sticky top-[89px] z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 flex">
         <button
           onClick={() => setActiveTab('image')}
@@ -22,7 +25,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          图片生成
+          {t('nav.image')}
           {activeTab === 'image' && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent" />
           )}
@@ -34,7 +37,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
           }`}
         >
           <Video className="w-4 h-4" />
-          视频生成
+          {t('nav.video')}
           {activeTab === 'video' && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent" />
           )}
