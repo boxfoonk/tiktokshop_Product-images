@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
 import { GenerationParams } from "../types";
 import { COUNTRY_CONFIG } from "../constants";
 
@@ -57,4 +57,52 @@ export async function generateTikTokVisual(params: GenerationParams) {
   }
 
   throw new Error('生成图片失败，未找到图像数据。');
+}
+
+export async function generateTikTokVideo(params: GenerationParams) {
+  const { modelImage, productImage, productName, videoScript, country, apiKey } = params;
+  
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const prompt = `
+    Create a high-conversion TikTok marketing video for ${productName}.
+    Market: ${country} (${COUNTRY_CONFIG[country].style})
+    Script/Action: ${videoScript || 'The model showcases the product in a lifestyle setting.'}
+    Ensure the product is clearly visible and the model looks natural.
+    Visual Style: High-end professional commercial video, vibrant colors, sharp focus.
+  `;
+
+  let operation = await ai.models.generateVideos({
+    model: 'veo-3.1-lite-generate-preview',
+    prompt: prompt,
+    image: {
+      imageBytes: modelImage.split(',')[1],
+      mimeType: 'image/png',
+    },
+    config: {
+      numberOfVideos: 1,
+      resolution: '720p',
+      aspectRatio: '9:16'
+    }
+  });
+
+  // Poll for completion
+  while (!operation.done) {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    operation = await ai.operations.getVideosOperation({ operation: operation });
+  }
+
+  const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+  if (!downloadLink) throw new Error('视频生成失败，未找到视频链接。');
+
+  // To fetch the video, append the Gemini API key to the `x-goog-api-key` header.
+  const response = await fetch(downloadLink, {
+    method: 'GET',
+    headers: {
+      'x-goog-api-key': apiKey,
+    },
+  });
+
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 }

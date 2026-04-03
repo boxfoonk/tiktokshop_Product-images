@@ -101,6 +101,69 @@ async function startServer() {
     }
   });
 
+  app.post("/api/generate-video", async (req, res) => {
+    console.log(`[${new Date().toISOString()}] 收到视频生成请求: ${req.body?.productName || '未命名'}`);
+    
+    try {
+      const { modelImage, productImage, productName, videoScript, country } = req.body || {};
+      const apiKey = process.env.GEMINI_API_KEY || getFallbackKey();
+
+      if (!apiKey) {
+        return res.status(400).json({ error: "未检测到有效的 API Key。" });
+      }
+
+      // SiliconFlow doesn't support Veo, so we only use Gemini for video
+      if (apiKey.startsWith('sk-')) {
+        return res.status(400).json({ error: "SiliconFlow 目前仅支持图片生成。请使用 Gemini API Key 以生成视频。" });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `
+        Create a high-conversion TikTok marketing video for ${productName}.
+        Market: ${country}
+        Script/Action: ${videoScript || 'The model showcases the product in a lifestyle setting.'}
+        Visual Style: High-end professional commercial video, vibrant colors, sharp focus.
+      `;
+
+      let operation = await ai.models.generateVideos({
+        model: 'veo-3.1-lite-generate-preview',
+        prompt: prompt,
+        image: {
+          imageBytes: modelImage.split(',')[1],
+          mimeType: 'image/png',
+        },
+        config: {
+          numberOfVideos: 1,
+          resolution: '720p',
+          aspectRatio: '9:16'
+        }
+      });
+
+      while (!operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+      }
+
+      const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+      if (!downloadLink) throw new Error('视频生成失败，未找到视频链接。');
+
+      const videoResponse = await fetch(downloadLink, {
+        method: 'GET',
+        headers: {
+          'x-goog-api-key': apiKey,
+        },
+      });
+
+      const buffer = await videoResponse.arrayBuffer();
+      const base64Video = Buffer.from(buffer).toString('base64');
+      
+      res.json({ videoUrl: `data:video/mp4;base64,${base64Video}` });
+    } catch (error: any) {
+      console.error("Video Generation Error:", error);
+      res.status(500).json({ error: error.message || "服务器内部错误" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

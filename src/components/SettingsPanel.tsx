@@ -30,31 +30,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="bg-white/5 border-b border-white/10 overflow-hidden"
+          className="bg-white border-b border-border overflow-hidden"
         >
           <div className="max-w-7xl mx-auto p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-orange-500">运行设置</h3>
-              <button onClick={() => setShowSettings(false)} className="text-[10px] uppercase text-white/40 hover:text-white">关闭</button>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-accent">运行设置</h3>
+              <button onClick={() => setShowSettings(false)} className="text-[10px] uppercase text-text-muted hover:text-text-main">关闭</button>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Gemini API Key (填入后开启 2K 高画质)</label>
+              <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Gemini API Key (填入后开启 2K 高画质)</label>
               <div className="flex gap-2">
                 <input 
                   type="password"
                   value={customApiKey}
                   onChange={(e) => setCustomApiKey(e.target.value)}
                   placeholder="在此输入您的 API Key..."
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg py-3 px-4 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="flex-1 bg-bg-main border border-border rounded-lg py-3 px-4 text-sm focus:outline-none focus:border-accent transition-colors shadow-sm"
                 />
-                <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isHighQuality ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
-                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/60">
+                <div className="px-4 py-3 rounded-lg bg-white border border-border flex items-center gap-2 shadow-sm">
+                  <div className={`w-2 h-2 rounded-full ${isHighQuality ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]' : 'bg-border'}`} />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-text-muted">
                     {isHighQuality ? '高画质模式' : '默认画质 (无需 Key)'}
                   </span>
                 </div>
               </div>
-              <p className="text-[9px] text-white/30">
+              <p className="text-[9px] text-text-muted/60">
                 提示：如果您在 AI Studio 预览中运行，可以直接使用平台提供的 Key。本地运行时，填入 Key 可解锁 2K 分辨率。如果未填入 Key，将使用默认画质模式。
               </p>
             </div>

@@ -17,7 +17,9 @@ export interface GenerationParams {
   productImage: string;
   productName: string;
   scenePrompt: string;
+  videoScript?: string;
   country: Country;
   apiKey: string;
   isHighQuality: boolean;
+  mode: 'image' | 'video';
 }
